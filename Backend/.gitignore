@@ -1,0 +1,64 @@
+# Node.js and npm dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Hardhat and build artifacts
+artifacts/
+cache/
+coverage/
+typechain/
+build/
+out/
+.env
+.env.local
+.env.*.local
+
+# OS temp files
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
+
+# Hardhat secret keys
+secret.txt
+
+# VSCode settings
+.vscode/
+
+# React build
+frontend/build/
+frontend/node_modules/
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+frontend/.DS_Store
+
+# Backend build
+synthetic-data-backend/node_modules/
+synthetic-data-backend/.env
+synthetic-data-backend/.env.local
+synthetic-data-backend/.env.*.local
+synthetic-data-backend/.DS_Store
+
+# Python cache and virtual envs (if used for QA)
+__pycache__/
+*.pyc
+venv/
+backend/venv/
+backend/__pycache__/
+backend/*.pyc
+
+# Test coverage
+coverage/
+*.lcov
+
+# Misc
+*.tgz
+*.gz
+*.zip
+
+# Etherscan verification cache
+.cache/

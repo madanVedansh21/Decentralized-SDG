@@ -1,0 +1,28 @@
+{
+  "name": "decentralized-sdg",
+  "version": "1.0.0",
+  "description": "",
+  "homepage": "https://github.com/madanVedansh21/Decentralized-SDG#readme",
+  "bugs": {
+    "url": "https://github.com/madanVedansh21/Decentralized-SDG/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/madanVedansh21/Decentralized-SDG.git"
+  },
+  "license": "ISC",
+  "author": "Vedansh & Yash",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "dev"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "ethers": "^6.15.0",
+    "express": "^5.1.0",
+    "form-data": "^4.0.4",
+    "ipfs-http-client": "^60.0.1"
+  },
+  "devDependencies": {}
+}
