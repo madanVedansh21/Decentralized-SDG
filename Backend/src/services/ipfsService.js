@@ -1,5 +1,6 @@
-const { create } = require('ipfs-http-client');
-const { config } = require('../config');
+// Use CommonJS-compatible import for ipfs-http-client v56.0.3
+const { create } = require("ipfs-http-client");
+const { config } = require("../config");
 
 /**
  * IPFS Service
@@ -17,25 +18,29 @@ class IPFSService {
    */
   async initialize() {
     try {
-      const auth = config.ipfs.projectId && config.ipfs.projectSecret
-        ? 'Basic ' + Buffer.from(config.ipfs.projectId + ':' + config.ipfs.projectSecret).toString('base64')
-        : undefined;
+      const auth =
+        config.ipfs.projectId && config.ipfs.projectSecret
+          ? "Basic " +
+            Buffer.from(
+              config.ipfs.projectId + ":" + config.ipfs.projectSecret
+            ).toString("base64")
+          : undefined;
 
       this.client = create({
         host: config.ipfs.host,
         port: config.ipfs.port,
         protocol: config.ipfs.protocol,
-        headers: auth ? { authorization: auth } : undefined
+        headers: auth ? { authorization: auth } : undefined,
       });
 
       // Test connection
       const version = await this.client.version();
       console.log(`✅ Connected to IPFS: ${version.version}`);
-      
+
       this.initialized = true;
       return true;
     } catch (error) {
-      console.error('❌ IPFS initialization error:', error.message);
+      console.error("❌ IPFS initialization error:", error.message);
       // Don't throw - IPFS is optional
       this.initialized = false;
       return false;
@@ -47,7 +52,7 @@ class IPFSService {
    */
   ensureInitialized() {
     if (!this.initialized) {
-      throw new Error('IPFS service not initialized');
+      throw new Error("IPFS service not initialized");
     }
   }
 
@@ -56,13 +61,13 @@ class IPFSService {
    */
   async uploadContent(content) {
     this.ensureInitialized();
-    
+
     try {
       const result = await this.client.add(content);
       console.log(`📤 Uploaded to IPFS: ${result.path}`);
       return result.path; // CID
     } catch (error) {
-      console.error('Error uploading to IPFS:', error);
+      console.error("Error uploading to IPFS:", error);
       throw new Error(`IPFS upload failed: ${error.message}`);
     }
   }
@@ -80,17 +85,17 @@ class IPFSService {
    */
   async uploadFile(fileBuffer, options = {}) {
     this.ensureInitialized();
-    
+
     try {
       const result = await this.client.add(fileBuffer, {
         pin: true,
-        ...options
+        ...options,
       });
-      
+
       console.log(`📤 Uploaded file to IPFS: ${result.path}`);
       return result.path;
     } catch (error) {
-      console.error('Error uploading file to IPFS:', error);
+      console.error("Error uploading file to IPFS:", error);
       throw new Error(`IPFS file upload failed: ${error.message}`);
     }
   }
@@ -100,14 +105,14 @@ class IPFSService {
    */
   async getContent(cid) {
     this.ensureInitialized();
-    
+
     try {
       const chunks = [];
       for await (const chunk of this.client.cat(cid)) {
         chunks.push(chunk);
       }
-      
-      const content = Buffer.concat(chunks).toString('utf-8');
+
+      const content = Buffer.concat(chunks).toString("utf-8");
       return content;
     } catch (error) {
       console.error(`Error fetching from IPFS (${cid}):`, error);
@@ -123,7 +128,7 @@ class IPFSService {
     try {
       return JSON.parse(content);
     } catch (error) {
-      throw new Error('Invalid JSON content in IPFS');
+      throw new Error("Invalid JSON content in IPFS");
     }
   }
 
@@ -132,7 +137,7 @@ class IPFSService {
    */
   async pinContent(cid) {
     this.ensureInitialized();
-    
+
     try {
       await this.client.pin.add(cid);
       console.log(`📌 Pinned to IPFS: ${cid}`);
@@ -148,7 +153,7 @@ class IPFSService {
    */
   async unpinContent(cid) {
     this.ensureInitialized();
-    
+
     try {
       await this.client.pin.rm(cid);
       console.log(`📍 Unpinned from IPFS: ${cid}`);
@@ -171,19 +176,19 @@ class IPFSService {
    */
   async uploadQualityReport(reportData) {
     const report = {
-      version: '1.0',
+      version: "1.0",
       timestamp: new Date().toISOString(),
-      ...reportData
+      ...reportData,
     };
-    
+
     const cid = await this.uploadJSON(report);
-    
+
     // Pin the report
     await this.pinContent(cid);
-    
+
     return {
       cid,
-      gatewayUrl: this.getGatewayUrl(cid)
+      gatewayUrl: this.getGatewayUrl(cid),
     };
   }
 
@@ -192,16 +197,16 @@ class IPFSService {
    */
   async uploadDatasetMetadata(metadata) {
     const data = {
-      version: '1.0',
+      version: "1.0",
       timestamp: new Date().toISOString(),
-      ...metadata
+      ...metadata,
     };
-    
+
     const cid = await this.uploadJSON(data);
-    
+
     return {
       cid,
-      gatewayUrl: this.getGatewayUrl(cid)
+      gatewayUrl: this.getGatewayUrl(cid),
     };
   }
 
@@ -211,14 +216,14 @@ class IPFSService {
   async verifyCID(cid) {
     try {
       this.ensureInitialized();
-      
+
       // Try to get first few bytes
       let hasContent = false;
       for await (const chunk of this.client.cat(cid, { length: 1 })) {
         hasContent = chunk.length > 0;
         break;
       }
-      
+
       return hasContent;
     } catch (error) {
       console.error(`CID verification failed (${cid}):`, error);

@@ -1,12 +1,12 @@
-const { ethers } = require('ethers');
-const { blockchainService } = require('../config');
-const { DataRequest, Submission } = require('../models');
+const { ethers } = require("ethers");
+const { blockchainService } = require("../config");
+// const { DataRequest, Submission } = require('../models'); // Models are not used, comment out or remove
 const {
   decodeFormatsMask,
   DATA_FORMAT_NAMES,
   REQUEST_STATUS_NAMES,
-  SUBMISSION_STATUS_NAMES
-} = require('../utils');
+  SUBMISSION_STATUS_NAMES,
+} = require("../utils");
 
 /**
  * Blockchain Service
@@ -20,16 +20,18 @@ class BlockchainInteraction {
   async syncRequest(requestId) {
     try {
       blockchainService.ensureInitialized();
-      
-      const contractRequest = await blockchainService.contract.requests(requestId);
-      
+
+      const contractRequest = await blockchainService.contract.requests(
+        requestId
+      );
+
       // Check if request exists on chain
-      if (contractRequest.id.toString() === '0') {
+      if (contractRequest.id.toString() === "0") {
         throw new Error(`Request ${requestId} not found on blockchain`);
       }
-      
+
       const formats = decodeFormatsMask(contractRequest.formatsMask);
-      
+
       const requestData = {
         requestId: Number(contractRequest.id),
         buyerAddress: contractRequest.buyer.toLowerCase(),
@@ -40,19 +42,14 @@ class BlockchainInteraction {
         status: REQUEST_STATUS_NAMES[contractRequest.status],
         qualityScore: contractRequest.qualityScore || null,
         ipfsReportCid: contractRequest.qualityReportCid || null,
-        finalizedSubmissionId: contractRequest.finalizedSubmissionId.toString() !== '0' 
-          ? Number(contractRequest.finalizedSubmissionId) 
-          : null
+        finalizedSubmissionId:
+          contractRequest.finalizedSubmissionId.toString() !== "0"
+            ? Number(contractRequest.finalizedSubmissionId)
+            : null,
       };
-      
-      // Upsert to database
-      const request = await DataRequest.findOneAndUpdate(
-        { requestId },
-        requestData,
-        { upsert: true, new: true }
-      );
-      
-      return request;
+
+      // No database model, just return requestData
+      return requestData;
     } catch (error) {
       console.error(`Error syncing request ${requestId}:`, error);
       throw error;
@@ -65,13 +62,15 @@ class BlockchainInteraction {
   async syncSubmission(submissionId) {
     try {
       blockchainService.ensureInitialized();
-      
-      const contractSubmission = await blockchainService.contract.submissions(submissionId);
-      
-      if (contractSubmission.id.toString() === '0') {
+
+      const contractSubmission = await blockchainService.contract.submissions(
+        submissionId
+      );
+
+      if (contractSubmission.id.toString() === "0") {
         throw new Error(`Submission ${submissionId} not found on blockchain`);
       }
-      
+
       const submissionData = {
         submissionId: Number(contractSubmission.id),
         requestId: Number(contractSubmission.requestId),
@@ -83,16 +82,11 @@ class BlockchainInteraction {
         fileExtensions: contractSubmission.fileExtensions,
         datasetReference: contractSubmission.datasetReference,
         status: SUBMISSION_STATUS_NAMES[contractSubmission.status],
-        qualityChecked: contractSubmission.qualityChecked
+        qualityChecked: contractSubmission.qualityChecked,
       };
-      
-      const submission = await Submission.findOneAndUpdate(
-        { submissionId },
-        submissionData,
-        { upsert: true, new: true }
-      );
-      
-      return submission;
+
+      // No database model, just return submissionData
+      return submissionData;
     } catch (error) {
       console.error(`Error syncing submission ${submissionId}:`, error);
       throw error;
@@ -105,44 +99,44 @@ class BlockchainInteraction {
   async createRequest(formatsMask, description, budgetInWei) {
     try {
       blockchainService.ensureInitialized();
-      
+
       if (!blockchainService.signer) {
-        throw new Error('Signer not available. Cannot create request.');
+        throw new Error("Signer not available. Cannot create request.");
       }
-      
+
       const contract = blockchainService.getContractWithSigner();
-      
+
       const tx = await contract.createRequest(formatsMask, description, {
-        value: budgetInWei
+        value: budgetInWei,
       });
-      
+
       console.log(`Request creation transaction sent: ${tx.hash}`);
-      
+
       const receipt = await tx.wait();
-      
+
       // Parse event to get request ID
-      const event = receipt.logs.find(log => {
+      const event = receipt.logs.find((log) => {
         try {
           const parsed = contract.interface.parseLog(log);
-          return parsed.name === 'RequestCreated';
+          return parsed.name === "RequestCreated";
         } catch {
           return false;
         }
       });
-      
+
       if (event) {
         const parsedEvent = contract.interface.parseLog(event);
         const requestId = Number(parsedEvent.args.requestId);
-        
+
         // Sync to database
         await this.syncRequest(requestId);
-        
+
         return { requestId, txHash: tx.hash };
       }
-      
-      throw new Error('RequestCreated event not found in transaction receipt');
+
+      throw new Error("RequestCreated event not found in transaction receipt");
     } catch (error) {
-      console.error('Error creating request on blockchain:', error);
+      console.error("Error creating request on blockchain:", error);
       throw error;
     }
   }
@@ -150,21 +144,29 @@ class BlockchainInteraction {
   /**
    * Submit dataset to blockchain
    */
-  async submitDataset(requestId, format, fileSize, sampleCount, fileExtensions, datasetReference, modelAddress) {
+  async submitDataset(
+    requestId,
+    format,
+    fileSize,
+    sampleCount,
+    fileExtensions,
+    datasetReference,
+    modelAddress
+  ) {
     try {
       blockchainService.ensureInitialized();
-      
+
       if (!blockchainService.signer) {
-        throw new Error('Signer not available. Cannot submit dataset.');
+        throw new Error("Signer not available. Cannot submit dataset.");
       }
-      
+
       const contract = blockchainService.getContractWithSigner();
-      
+
       const formatIndex = DATA_FORMAT_NAMES.indexOf(format);
       if (formatIndex === -1) {
-        throw new Error('Invalid format');
+        throw new Error("Invalid format");
       }
-      
+
       const tx = await contract.submitDataset(
         requestId,
         formatIndex,
@@ -174,34 +176,36 @@ class BlockchainInteraction {
         datasetReference,
         modelAddress
       );
-      
+
       console.log(`Submission transaction sent: ${tx.hash}`);
-      
+
       const receipt = await tx.wait();
-      
+
       // Parse event to get submission ID
-      const event = receipt.logs.find(log => {
+      const event = receipt.logs.find((log) => {
         try {
           const parsed = contract.interface.parseLog(log);
-          return parsed.name === 'SubmissionSubmitted';
+          return parsed.name === "SubmissionSubmitted";
         } catch {
           return false;
         }
       });
-      
+
       if (event) {
         const parsedEvent = contract.interface.parseLog(event);
         const submissionId = Number(parsedEvent.args.submissionId);
-        
+
         // Sync to database
         await this.syncSubmission(submissionId);
-        
+
         return { submissionId, txHash: tx.hash };
       }
-      
-      throw new Error('SubmissionSubmitted event not found in transaction receipt');
+
+      throw new Error(
+        "SubmissionSubmitted event not found in transaction receipt"
+      );
     } catch (error) {
-      console.error('Error submitting dataset on blockchain:', error);
+      console.error("Error submitting dataset on blockchain:", error);
       throw error;
     }
   }
@@ -209,38 +213,40 @@ class BlockchainInteraction {
   /**
    * Verify submission on blockchain
    */
-  async verifySubmission(submissionId, approved, qualityScore, qualityReportCid) {
+  async verifySubmission(
+    submissionId,
+    approved,
+    qualityScore,
+    qualityReportCid
+  ) {
     try {
       blockchainService.ensureInitialized();
-      
+
       if (!blockchainService.signer) {
-        throw new Error('Signer not available. Cannot verify submission.');
+        throw new Error("Signer not available. Cannot verify submission.");
       }
-      
+
       const contract = blockchainService.getContractWithSigner();
-      
+
       const tx = await contract.verifySubmission(
         submissionId,
         approved,
         qualityScore,
         qualityReportCid
       );
-      
+
       console.log(`Verification transaction sent: ${tx.hash}`);
-      
+
       const receipt = await tx.wait();
-      
+
       // Sync both submission and request
       await this.syncSubmission(submissionId);
-      
-      const submission = await Submission.findOne({ submissionId });
-      if (submission) {
-        await this.syncRequest(submission.requestId);
-      }
-      
+
+      // No database model, skip syncing request
+
       return { txHash: tx.hash, receipt };
     } catch (error) {
-      console.error('Error verifying submission on blockchain:', error);
+      console.error("Error verifying submission on blockchain:", error);
       throw error;
     }
   }
@@ -251,11 +257,13 @@ class BlockchainInteraction {
   async getBuyerRequests(buyerAddress) {
     try {
       blockchainService.ensureInitialized();
-      
-      const requestIds = await blockchainService.contract.getBuyerRequests(buyerAddress);
-      return requestIds.map(id => Number(id));
+
+      const requestIds = await blockchainService.contract.getBuyerRequests(
+        buyerAddress
+      );
+      return requestIds.map((id) => Number(id));
     } catch (error) {
-      console.error('Error fetching buyer requests:', error);
+      console.error("Error fetching buyer requests:", error);
       throw error;
     }
   }
@@ -266,11 +274,12 @@ class BlockchainInteraction {
   async getSellerSubmissions(sellerAddress) {
     try {
       blockchainService.ensureInitialized();
-      
-      const submissionIds = await blockchainService.contract.getSellerSubmissions(sellerAddress);
-      return submissionIds.map(id => Number(id));
+
+      const submissionIds =
+        await blockchainService.contract.getSellerSubmissions(sellerAddress);
+      return submissionIds.map((id) => Number(id));
     } catch (error) {
-      console.error('Error fetching seller submissions:', error);
+      console.error("Error fetching seller submissions:", error);
       throw error;
     }
   }
@@ -281,11 +290,11 @@ class BlockchainInteraction {
   async getTotalEscrowed() {
     try {
       blockchainService.ensureInitialized();
-      
+
       const total = await blockchainService.contract.totalEscrowed();
       return total.toString();
     } catch (error) {
-      console.error('Error fetching total escrowed:', error);
+      console.error("Error fetching total escrowed:", error);
       throw error;
     }
   }
@@ -296,37 +305,84 @@ class BlockchainInteraction {
   setupEventListeners(handlers = {}) {
     try {
       blockchainService.ensureInitialized();
-      
+
       const contract = blockchainService.contract;
-      
+
       if (handlers.onRequestCreated) {
-        contract.on('RequestCreated', async (requestId, buyer, budget, formatsMask, description, event) => {
-          console.log(`📝 RequestCreated event: ${requestId}`);
-          await this.syncRequest(Number(requestId));
-          handlers.onRequestCreated({ requestId: Number(requestId), buyer, budget, formatsMask, description, event });
-        });
+        contract.on(
+          "RequestCreated",
+          async (requestId, buyer, budget, formatsMask, description, event) => {
+            console.log(`📝 RequestCreated event: ${requestId}`);
+            await this.syncRequest(Number(requestId));
+            handlers.onRequestCreated({
+              requestId: Number(requestId),
+              buyer,
+              budget,
+              formatsMask,
+              description,
+              event,
+            });
+          }
+        );
       }
-      
+
       if (handlers.onSubmissionSubmitted) {
-        contract.on('SubmissionSubmitted', async (submissionId, requestId, seller, model, format, fileSize, sampleCount, fileExtensions, datasetReference, event) => {
-          console.log(`📤 SubmissionSubmitted event: ${submissionId}`);
-          await this.syncSubmission(Number(submissionId));
-          handlers.onSubmissionSubmitted({ submissionId: Number(submissionId), requestId: Number(requestId), seller, model, event });
-        });
+        contract.on(
+          "SubmissionSubmitted",
+          async (
+            submissionId,
+            requestId,
+            seller,
+            model,
+            format,
+            fileSize,
+            sampleCount,
+            fileExtensions,
+            datasetReference,
+            event
+          ) => {
+            console.log(`📤 SubmissionSubmitted event: ${submissionId}`);
+            await this.syncSubmission(Number(submissionId));
+            handlers.onSubmissionSubmitted({
+              submissionId: Number(submissionId),
+              requestId: Number(requestId),
+              seller,
+              model,
+              event,
+            });
+          }
+        );
       }
-      
+
       if (handlers.onSubmissionVerified) {
-        contract.on('SubmissionVerified', async (submissionId, requestId, approved, qualityScore, qualityReportCid, event) => {
-          console.log(`✅ SubmissionVerified event: ${submissionId}`);
-          await this.syncSubmission(Number(submissionId));
-          await this.syncRequest(Number(requestId));
-          handlers.onSubmissionVerified({ submissionId: Number(submissionId), requestId: Number(requestId), approved, qualityScore, qualityReportCid, event });
-        });
+        contract.on(
+          "SubmissionVerified",
+          async (
+            submissionId,
+            requestId,
+            approved,
+            qualityScore,
+            qualityReportCid,
+            event
+          ) => {
+            console.log(`✅ SubmissionVerified event: ${submissionId}`);
+            await this.syncSubmission(Number(submissionId));
+            await this.syncRequest(Number(requestId));
+            handlers.onSubmissionVerified({
+              submissionId: Number(submissionId),
+              requestId: Number(requestId),
+              approved,
+              qualityScore,
+              qualityReportCid,
+              event,
+            });
+          }
+        );
       }
-      
-      console.log('✅ Event listeners set up');
+
+      console.log("✅ Event listeners set up");
     } catch (error) {
-      console.error('Error setting up event listeners:', error);
+      console.error("Error setting up event listeners:", error);
       throw error;
     }
   }
